@@ -10,6 +10,12 @@ parser.add_argument(
     help="Split FAT partitions.",
     action=argparse.BooleanOptionalAction,
 )
+parser.add_argument(
+    "-e",
+    "--early",
+    help="Use early variant (for Toshiba A5523T).",
+    action=argparse.BooleanOptionalAction,
+)
 
 args = parser.parse_args()
 
@@ -24,16 +30,24 @@ len_sectors = len(data) // 0x21 * 0x20
 virtual_space = {}
 for sector in range(len_sectors // 0x4000):
     spare = data[len_sectors + sector * 0x200 : len_sectors + (sector + 1) * 0x200]
-    block_id = int.from_bytes(spare[0xA:0xE], "big")
-    subblock_id = int.from_bytes(spare[0x2A:0x2E], "big")
-    if block_id == 0xFFFFFFFF:
-        continue
-    if block_id != int.from_bytes(spare[0x1A:0x1E], "big"):
-        continue
-    if block_id != int.from_bytes(spare[0x1EA:0x1EE], "big"):
-        continue
-    if block_id != int.from_bytes(spare[0x1FA:0x1FE], "big"):
-        continue
+    if args.early:
+        block_id = int.from_bytes(spare[0xD:0xF], "big")
+        subblock_id = sector
+        if block_id == 0xFFFF:
+            continue
+        if block_id != int.from_bytes(spare[0x1FD:0x1FF], "big"):
+            continue
+    else:
+        block_id = int.from_bytes(spare[0xA:0xE], "big")
+        subblock_id = int.from_bytes(spare[0x2A:0x2E], "big")
+        if block_id == 0xFFFFFFFF:
+            continue
+        if block_id != int.from_bytes(spare[0x1A:0x1E], "big"):
+            continue
+        if block_id != int.from_bytes(spare[0x1EA:0x1EE], "big"):
+            continue
+        if block_id != int.from_bytes(spare[0x1FA:0x1FE], "big"):
+            continue
     virtual_space[block_id] = virtual_space.get(block_id, [])
     virtual_space[block_id].append((subblock_id, sector * 0x4000))
 
